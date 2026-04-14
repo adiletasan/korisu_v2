@@ -25,7 +25,7 @@ async def get_me(
         "email": user.email,
         "name": user.name,
         "avatar_url": user.avatar_url,
-        "provider": user.provider.value,
+        "provider": user.provider,
         "verified": user.verified,
         "created_at": user.created_at.isoformat(),
     }
