@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     LIVEKIT_SECRET_ENCRYPTION_KEY: str = ""
 
     FRONTEND_URL: str = "http://localhost:5173"
+    INTERNAL_KEY: str = "korisu-internal"
 
     class Config:
         env_file = ".env"

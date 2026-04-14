@@ -7,13 +7,18 @@ router = APIRouter()
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def chat_proxy(path: str, request: Request):
-    token = request.cookies.get("access_token")
-    headers = {"Cookie": f"access_token={token}"} if token else {}
+    cookies = request.cookies
+    url_path = f"/chats/{path}" if path else "/chats"
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.request(
             method=request.method,
-            url=f"{settings.CHAT_SERVICE_URL}/chats/{path}",
-            headers=headers,
+            url=f"{settings.CHAT_SERVICE_URL}{url_path}",
+            cookies=cookies,
             content=await request.body(),
+            params=request.query_params,
         )
-    return JSONResponse(status_code=resp.status_code, content=resp.json() if resp.content else None)
+    try:
+        content = resp.json()
+    except Exception:
+        content = None
+    return JSONResponse(status_code=resp.status_code, content=content)
