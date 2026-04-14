@@ -26,6 +26,7 @@ interface Props {
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'wss://korisu-chat.onrender.com/ws'
 
+
 export default function DashChat({ initialUserId, initialUserName }: Props) {
   const user = useAuthStore(s => s.user)
   const [convos, setConvos] = useState<Conversation[]>([])
@@ -33,6 +34,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
   const [convId, setConvId] = useState<string | null>(null)
+  const [wsReady, setWsReady] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -41,7 +43,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
     api.get('/chats').then(r => setConvos(r.data)).catch(() => {})
   }, [])
 
-  // If opened from contacts — auto open chat with that user
+  // Auto open chat from contacts
   useEffect(() => {
     if (!initialUserId) return
     api.get(`/chats/${initialUserId}/messages`)
@@ -64,7 +66,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       .catch(() => {})
   }, [initialUserId])
 
-  // WebSocket
+  // WebSocket с авторизацией через первое сообщение
   useEffect(() => {
     if (!user) return
     let ws: WebSocket
@@ -73,10 +75,28 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
     const connect = () => {
       ws = new WebSocket(WS_URL)
       wsRef.current = ws
+      setWsReady(false)
+
+      ws.onopen = () => {
+        // Отправляем токен первым сообщением
+        const { data } = await api.get('/auth/token').catch(() => ({ data: { token: '' } }))
+        const token = data.token
+        ws.send(JSON.stringify({ type: 'auth', token }))
+      }
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data)
-        if (msg.type === 'ping') { ws.send(JSON.stringify({ type: 'pong' })); return }
+
+        if (msg.type === 'auth_ok') {
+          setWsReady(true)
+          return
+        }
+
+        if (msg.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong' }))
+          return
+        }
+
         if (msg.type === 'message') {
           setMessages(prev => [...prev, msg])
           setConvos(prev => prev.map(c =>
@@ -88,6 +108,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       }
 
       ws.onclose = () => {
+        setWsReady(false)
         retryTimeout = setTimeout(connect, 3000)
       }
     }
@@ -116,8 +137,11 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
 
   const sendMessage = () => {
     if (!text.trim() || !convId || !wsRef.current || wsRef.current.readyState !== 1) return
-    const payload = { type: 'message', conversation_id: convId, content: text.trim() }
-    wsRef.current.send(JSON.stringify(payload))
+    wsRef.current.send(JSON.stringify({
+      type: 'message',
+      conversation_id: convId,
+      content: text.trim()
+    }))
     setMessages(prev => [...prev, {
       id: crypto.randomUUID(),
       sender_id: user!.id,
@@ -173,7 +197,9 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
               </div>
               <div>
                 <div className={styles.chatHeaderName}>{activeConvo.partner.name}</div>
-                <div className={styles.chatHeaderEmail}>{activeConvo.partner.email}</div>
+                <div className={styles.chatHeaderEmail}>
+                  {wsReady ? '🟢 online' : '⚪ connecting...'}
+                </div>
               </div>
             </div>
 
@@ -197,7 +223,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
                 rows={1}
                 maxLength={4000}
               />
-              <button className={styles.sendBtn} onClick={sendMessage} disabled={!text.trim()}>
+              <button className={styles.sendBtn} onClick={sendMessage} disabled={!text.trim() || !wsReady}>
                 <SendIcon />
               </button>
             </div>

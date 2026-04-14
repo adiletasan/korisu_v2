@@ -303,3 +303,21 @@ async def _issue_tokens_and_redirect(user, request, response, redis, db, redirec
 
     set_auth_cookies(resp, access_token, raw_refresh)
     return resp
+
+
+@router.get("/token")
+async def get_ws_token(current_user: dict = Depends(get_current_user)):
+    """Return access token for WebSocket auth"""
+    from fastapi import Response
+    from fastapi.responses import JSONResponse
+    from jose import jwt
+    from config import settings
+    import uuid
+    from datetime import datetime, timedelta, timezone
+
+    access_token, _ = create_access_token(
+        current_user["user_id"],
+        current_user["email"],
+        current_user["role"]
+    )
+    return {"token": access_token}
