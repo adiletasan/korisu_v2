@@ -24,6 +24,11 @@ interface Props {
   initialUserName?: string | null
 }
 
+function getCookie(name: string): string {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+  return match ? match[2] : ''
+}
+
 const WS_URL = import.meta.env.VITE_WS_URL || 'wss://korisu-chat.onrender.com/ws'
 
 
@@ -77,7 +82,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       wsRef.current = ws
       setWsReady(false)
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
         // Отправляем токен первым сообщением
         const { data } = await api.get('/auth/token').catch(() => ({ data: { token: '' } }))
         const token = data.token
