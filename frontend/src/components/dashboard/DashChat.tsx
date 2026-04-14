@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../../store/auth'
-import api from '../../lib/api'
+import { chatApi as api } from '../../lib/api'
 import styles from './DashChat.module.css'
 
 interface Conversation {
