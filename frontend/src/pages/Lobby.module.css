@@ -1,0 +1,200 @@
+.root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+  position: relative;
+}
+
+.logo {
+  position: fixed;
+  top: 28px; left: 40px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.5px;
+}
+.logo span { color: var(--accent); }
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 48px 36px;
+  text-align: center;
+  animation: fadeUp 0.4s ease forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 8px;
+}
+
+/* Pulse animation ring */
+.pulseRing {
+  position: relative;
+  width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px;
+}
+
+.pulseRing::before, .pulseRing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: pulseRingAnim 2s ease-out infinite;
+}
+.pulseRing::after { animation-delay: 1s; }
+
+@keyframes pulseRingAnim {
+  0% { transform: scale(0.7); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.pulseCore {
+  width: 56px; height: 56px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,255,136,0.3);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  position: relative; z-index: 1;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.65;
+}
+
+.elapsed {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.meetingInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  margin-top: 4px;
+}
+
+.meetingLabel {
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.meetingId {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-2);
+  letter-spacing: 0.05em;
+}
+
+/* Animated dots */
+.dots {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0;
+}
+.dots span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.3;
+  animation: dotBounce 1.4s ease infinite;
+}
+.dots span:nth-child(2) { animation-delay: 0.2s; }
+.dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.3); }
+}
+
+.approvedIcon {
+  width: 64px; height: 64px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,255,136,0.3);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 8px;
+  animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+.rejectedIcon {
+  width: 64px; height: 64px;
+  background: var(--red-dim);
+  border: 1px solid rgba(255,68,68,0.2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  color: var(--red);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.cancelBtn {
+  margin-top: 8px;
+  padding: 10px 24px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all var(--transition);
+}
+.cancelBtn:hover { border-color: var(--border-2); color: var(--text); }
+
+.backBtn {
+  margin-top: 8px;
+  padding: 11px 28px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all var(--transition);
+}
+.backBtn:hover { background: var(--surface-3); }

@@ -1,0 +1,110 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: korisu_db
+      POSTGRES_USER: korisu
+      POSTGRES_PASSWORD: korisu_dev_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U korisu -d korisu_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api_gateway:
+    build:
+      context: ./services/api_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://korisu:korisu_dev_password@postgres:5432/korisu_db
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: http://localhost:5173
+      CHAT_SERVICE_URL: http://chat_service:8001
+      CONFERENCE_SERVICE_URL: http://conference_service:8002
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      LIVEKIT_SECRET_ENCRYPTION_KEY: ${LIVEKIT_SECRET_ENCRYPTION_KEY:-korisu-livekit-key-32-chars!!!!!}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      JWT_PRIVATE_KEY_FILE: /run/secrets/private.pem
+      JWT_PUBLIC_KEY_FILE: /run/secrets/public.pem
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/api_gateway:/app
+      - ./private.pem:/run/secrets/private.pem:ro
+      - ./public.pem:/run/secrets/public.pem:ro
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  chat_service:
+    build:
+      context: ./services/chat_service
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://korisu:korisu_dev_password@postgres:5432/korisu_db
+      REDIS_URL: redis://redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/public.pem
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/chat_service:/app
+      - ./public.pem:/run/secrets/public.pem:ro
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+  conference_service:
+    build:
+      context: ./services/conference_service
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql://korisu:korisu_dev_password@postgres:5432/korisu_db
+      REDIS_URL: redis://redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/public.pem
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      LIVEKIT_SECRET_ENCRYPTION_KEY: ${LIVEKIT_SECRET_ENCRYPTION_KEY:-korisu-livekit-key-32-chars!!!!!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/conference_service:/app
+      - ./public.pem:/run/secrets/public.pem:ro
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+
+volumes:
+  postgres_data:
+  redis_data:
