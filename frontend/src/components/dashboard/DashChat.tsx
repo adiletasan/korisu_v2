@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../store/auth'
-import { chatApi as api } from '../../lib/api'
+import api from '../../lib/api'
 import styles from './DashChat.module.css'
 
 interface Conversation {
@@ -19,9 +19,14 @@ interface Message {
   created_at: string
 }
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8001/ws'
+interface Props {
+  initialUserId?: string | null
+  initialUserName?: string | null
+}
 
-export default function DashChat() {
+const WS_URL = import.meta.env.VITE_WS_URL || 'wss://korisu-chat.onrender.com/ws'
+
+export default function DashChat({ initialUserId, initialUserName }: Props) {
   const user = useAuthStore(s => s.user)
   const [convos, setConvos] = useState<Conversation[]>([])
   const [activeConvo, setActiveConvo] = useState<Conversation | null>(null)
@@ -36,6 +41,29 @@ export default function DashChat() {
     api.get('/chats').then(r => setConvos(r.data)).catch(() => {})
   }, [])
 
+  // If opened from contacts — auto open chat with that user
+  useEffect(() => {
+    if (!initialUserId) return
+    api.get(`/chats/${initialUserId}/messages`)
+      .then(r => {
+        setMessages(r.data.messages)
+        setConvId(r.data.conversation_id)
+        setActiveConvo({
+          conversation_id: r.data.conversation_id,
+          partner: {
+            id: initialUserId,
+            name: initialUserName || initialUserId,
+            avatar_url: null,
+            email: '',
+          },
+          last_message: null,
+          last_message_at: null,
+          unread_count: 0,
+        })
+      })
+      .catch(() => {})
+  }, [initialUserId])
+
   // WebSocket
   useEffect(() => {
     if (!user) return
@@ -45,13 +73,6 @@ export default function DashChat() {
     const connect = () => {
       ws = new WebSocket(WS_URL)
       wsRef.current = ws
-
-      ws.onopen = () => {
-        // Get access token cookie value is not possible — send via first message with stored value
-        // The backend reads from cookie, but for WS we send auth token via message
-        // In production, the cookie is sent automatically with the WS handshake
-        // We signal ready state
-      }
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data)
@@ -63,9 +84,6 @@ export default function DashChat() {
               ? { ...c, last_message: msg.content, last_message_at: msg.created_at }
               : c
           ))
-        }
-        if (msg.type === 'typing') {
-          // Could show typing indicator — omitted for brevity
         }
       }
 
@@ -89,7 +107,7 @@ export default function DashChat() {
         setMessages(r.data.messages)
         setConvId(r.data.conversation_id)
       })
-  }, [activeConvo])
+  }, [activeConvo?.conversation_id])
 
   // Scroll to bottom
   useEffect(() => {
@@ -100,7 +118,6 @@ export default function DashChat() {
     if (!text.trim() || !convId || !wsRef.current || wsRef.current.readyState !== 1) return
     const payload = { type: 'message', conversation_id: convId, content: text.trim() }
     wsRef.current.send(JSON.stringify(payload))
-    // Optimistically add
     setMessages(prev => [...prev, {
       id: crypto.randomUUID(),
       sender_id: user!.id,
@@ -117,11 +134,8 @@ export default function DashChat() {
 
   return (
     <div className={styles.root}>
-      {/* Conversation list */}
       <aside className={styles.list}>
-        <div className={styles.listHeader}>
-          <h2>Messages</h2>
-        </div>
+        <div className={styles.listHeader}><h2>Messages</h2></div>
         <div className={styles.listBody}>
           {convos.length === 0 && <p className={styles.empty}>No conversations yet.<br />Add a contact to start chatting.</p>}
           {convos.map(c => (
@@ -143,7 +157,6 @@ export default function DashChat() {
         </div>
       </aside>
 
-      {/* Chat area */}
       <div className={styles.chat}>
         {!activeConvo ? (
           <div className={styles.placeholder}>

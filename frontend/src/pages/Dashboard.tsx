@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import api from '../lib/api'
 import DashHome from '../components/dashboard/DashHome'
@@ -12,30 +11,32 @@ type Section = 'home' | 'chat' | 'contacts' | 'settings'
 
 export default function Dashboard() {
   const [section, setSection] = useState<Section>('home')
+  const [chatUserId, setChatUserId] = useState<string | null>(null)
+  const [chatUserName, setChatUserName] = useState<string | null>(null)
   const user = useAuthStore(s => s.user)
   const fetchMe = useAuthStore(s => s.fetchMe)
   const logout = useAuthStore(s => s.logout)
-  const nav = useNavigate()
 
   useEffect(() => { fetchMe() }, [])
 
   const avatar = user?.avatar_url
   const initials = user?.name?.slice(0, 2).toUpperCase() || 'KR'
 
+  const handleStartChat = (userId: string, userName: string) => {
+    setChatUserId(userId)
+    setChatUserName(userName)
+    setSection('chat')
+  }
+
   return (
     <div className={styles.root}>
-      {/* SIDEBAR */}
       <aside className={styles.sidebar}>
-        <div className={styles.logo}>
-          KO<span>RISU</span>
-        </div>
-
+        <div className={styles.logo}>KO<span>RISU</span></div>
         <nav className={styles.sideNav}>
           <NavItem icon={<HomeIcon />} label="Home" active={section === 'home'} onClick={() => setSection('home')} />
           <NavItem icon={<ChatIcon />} label="Chat" active={section === 'chat'} onClick={() => setSection('chat')} />
           <NavItem icon={<PeopleIcon />} label="Contacts" active={section === 'contacts'} onClick={() => setSection('contacts')} />
         </nav>
-
         <div className={styles.sideBottom}>
           <NavItem icon={<SettingsIcon />} label="Settings" active={section === 'settings'} onClick={() => setSection('settings')} />
           <div className={styles.profile} onClick={() => setSection('settings')}>
@@ -52,12 +53,10 @@ export default function Dashboard() {
           </button>
         </div>
       </aside>
-
-      {/* MAIN */}
       <main className={styles.main}>
         {section === 'home' && <DashHome />}
-        {section === 'chat' && <DashChat />}
-        {section === 'contacts' && <DashContacts />}
+        {section === 'chat' && <DashChat initialUserId={chatUserId} initialUserName={chatUserName} />}
+        {section === 'contacts' && <DashContacts onStartChat={handleStartChat} />}
         {section === 'settings' && <DashSettings />}
       </main>
     </div>

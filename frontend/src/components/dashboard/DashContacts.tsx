@@ -6,7 +6,11 @@ interface Contact {
   id: string; user_id: string; email: string; name: string; avatar_url: string | null
 }
 
-export default function DashContacts() {
+interface Props {
+  onStartChat?: (userId: string, userName: string) => void
+}
+
+export default function DashContacts({ onStartChat }: Props) {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [email, setEmail] = useState('')
   const [nickname, setNickname] = useState('')
@@ -45,7 +49,6 @@ export default function DashContacts() {
     <div className={styles.root}>
       <h1 className={styles.title}>Contacts</h1>
 
-      {/* Add contact */}
       <form className={styles.addForm} onSubmit={addContact}>
         <h2 className={styles.sectionTitle}>Add contact</h2>
         <div className={styles.fields}>
@@ -59,7 +62,6 @@ export default function DashContacts() {
         {success && <p className={styles.success}>{success}</p>}
       </form>
 
-      {/* List */}
       <div className={styles.listSection}>
         <h2 className={styles.sectionTitle}>Your contacts ({contacts.length})</h2>
         {contacts.length === 0
@@ -73,7 +75,14 @@ export default function DashContacts() {
                 <div className={styles.name}>{c.name}</div>
                 <div className={styles.emailText}>{c.email}</div>
               </div>
-              <button className={styles.removeBtn} onClick={() => remove(c.id)}>Remove</button>
+              <div className={styles.actions}>
+                {onStartChat && (
+                  <button className={styles.messageBtn} onClick={() => onStartChat(c.user_id, c.name)}>
+                    Message
+                  </button>
+                )}
+                <button className={styles.removeBtn} onClick={() => remove(c.id)}>Remove</button>
+              </div>
             </div>
           ))
         }

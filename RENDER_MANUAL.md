@@ -14,7 +14,7 @@
 |-----|-------|
 | PYTHON_VERSION | 3.11.9 |
 | DATABASE_URL | (из Render PostgreSQL) |
-| REDIS_URL | rediss://default:...@...upstash.io:6379 |
+| REDIS_URL | rediss://default:...@...upstash.io:6379 | redis-cli --tls -u redis://default:gQAAAAAAAQr3AAIncDE3MDVkNTIwZGQwNDQ0YjNiYmY0Yjk3ZDgxZGU4MDgwNnAxNjgzNDM@moral-lizard-68343.upstash.io:6379
 | JWT_PRIVATE_KEY | (содержимое private.pem) |
 | JWT_PUBLIC_KEY | (содержимое public.pem) |
 | FRONTEND_URL | https://korisu-frontend.onrender.com |
