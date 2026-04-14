@@ -228,7 +228,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
                 rows={1}
                 maxLength={4000}
               />
-              <button className={styles.sendBtn} onClick={sendMessage} disabled={!text.trim() || !wsReady}>
+              <button className={styles.sendBtn} onClick={sendMessage} disabled={!text.trim()}>
                 <SendIcon />
               </button>
             </div>
