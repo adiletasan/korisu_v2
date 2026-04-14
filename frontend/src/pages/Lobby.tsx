@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
-import { conferenceApi as api } from '../lib/api'
+import api from '../lib/api'
 import styles from './Lobby.module.css'
 
 type LobbyStatus = 'requesting' | 'waiting' | 'approved' | 'rejected' | 'error'
