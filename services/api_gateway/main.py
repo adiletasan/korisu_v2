@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import redis.asyncio as aioredis
 from database import engine, Base
 from config import settings
-from routers import auth, users, meetings, contacts, health
+from routers import auth, users, meetings, contacts, health, lobby_proxy, chat_proxy
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,4 +43,6 @@ app.include_router(health.router)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(meetings.router, prefix="/meetings", tags=["meetings"])
+app.include_router(chat_proxy.router, prefix="/chats", tags=["chat"])
+app.include_router(lobby_proxy.router, prefix="/lobby", tags=["lobby"])
 app.include_router(contacts.router, prefix="/api/contacts", tags=["contacts"])
