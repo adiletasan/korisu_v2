@@ -132,6 +132,19 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       .then(r => {
         setMessages(r.data.messages)
         setConvId(r.data.conversation_id)
+
+        if (r.data.conversation_id) {
+          wsRef.current?.send(JSON.stringify({
+            type: 'mark_read',
+            conversation_id: r.data.conversation_id
+          }))
+
+          setConvos(prev => prev.map(c =>
+            setConvos(prev => prev.map(c =>
+              ? { ...c, unread_count: 0 }
+              : c
+          ))
+        }
       })
   }, [activeConvo?.conversation_id])
 
