@@ -26,6 +26,17 @@ interface Props {
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'wss://korisu-chat.onrender.com/ws'
 
+function formatLastSeen(iso: string | null): string {
+  if (!iso) return 'Never'
+  const date = new Date(iso)
+  const now = new Date()
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (diff < 60) return 'Just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`
+  return date.toLocaleDateString()
+}
+
 export default function DashChat({ initialUserId, initialUserName }: Props) {
   const user = useAuthStore(s => s.user)
   const [convos, setConvos] = useState<Conversation[]>([])
@@ -34,15 +45,30 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
   const [text, setText] = useState('')
   const [convId, setConvId] = useState<string | null>(null)
   const [wsReady, setWsReady] = useState(false)
+  const [partnerOnline, setPartnerOnline] = useState(false)
+  const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Load conversations
   useEffect(() => {
     api.get('/chats').then(r => setConvos(r.data)).catch(() => {})
   }, [])
 
-  // Auto open chat from contacts
+  useEffect(() => {
+    if (!activeConvo) return
+    const loadStatus = () => {
+      api.get(`/api/users/status/${activeConvo.partner.id}`)
+        .then(r => {
+          setPartnerOnline(r.data.is_online)
+          setPartnerLastSeen(r.data.last_seen_at)
+        })
+        .catch(() => {})
+    }
+    loadStatus()
+    const interval = setInterval(loadStatus, 30000)
+    return () => clearInterval(interval)
+  }, [activeConvo?.partner.id])
+
   useEffect(() => {
     if (!initialUserId) return
     api.get(`/chats/${initialUserId}/messages`)
@@ -54,12 +80,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
         ))
         setActiveConvo({
           conversation_id: r.data.conversation_id,
-          partner: {
-            id: initialUserId,
-            name: initialUserName || initialUserId,
-            avatar_url: null,
-            email: '',
-          },
+          partner: { id: initialUserId, name: initialUserName || initialUserId, avatar_url: null, email: '' },
           last_message: null,
           last_message_at: null,
           unread_count: 0,
@@ -68,7 +89,6 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       .catch(() => {})
   }, [initialUserId])
 
-  // WebSocket
   useEffect(() => {
     if (!user) return
     let ws: WebSocket
@@ -86,17 +106,8 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data)
-
-        if (msg.type === 'auth_ok') {
-          setWsReady(true)
-          return
-        }
-
-        if (msg.type === 'ping') {
-          ws.send(JSON.stringify({ type: 'pong' }))
-          return
-        }
-
+        if (msg.type === 'auth_ok') { setWsReady(true); return }
+        if (msg.type === 'ping') { ws.send(JSON.stringify({ type: 'pong' })); return }
         if (msg.type === 'message') {
           setMessages(prev => [...prev, msg])
           setConvos(prev => prev.map(c =>
@@ -114,46 +125,31 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
     }
 
     connect()
-    return () => {
-      ws?.close()
-      clearTimeout(retryTimeout)
-    }
+    return () => { ws?.close(); clearTimeout(retryTimeout) }
   }, [user])
 
-  // Load messages when conversation selected
   useEffect(() => {
     if (!activeConvo) return
     api.get(`/chats/${activeConvo.partner.id}/messages`)
       .then(r => {
         setMessages(r.data.messages)
         setConvId(r.data.conversation_id)
-        // Mark as read
         if (r.data.conversation_id) {
-          wsRef.current?.send(JSON.stringify({
-            type: 'mark_read',
-            conversation_id: r.data.conversation_id
-          }))
+          wsRef.current?.send(JSON.stringify({ type: 'mark_read', conversation_id: r.data.conversation_id }))
           setConvos(prev => prev.map(c =>
-            c.conversation_id === r.data.conversation_id
-              ? { ...c, unread_count: 0 }
-              : c
+            c.conversation_id === r.data.conversation_id ? { ...c, unread_count: 0 } : c
           ))
         }
       })
   }, [activeConvo?.conversation_id])
 
-  // Scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   const sendMessage = () => {
     if (!text.trim() || !convId || !wsRef.current || wsRef.current.readyState !== 1) return
-    wsRef.current.send(JSON.stringify({
-      type: 'message',
-      conversation_id: convId,
-      content: text.trim()
-    }))
+    wsRef.current.send(JSON.stringify({ type: 'message', conversation_id: convId, content: text.trim() }))
     setMessages(prev => [...prev, {
       id: crypto.randomUUID(),
       sender_id: user!.id,
@@ -216,8 +212,8 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
               </div>
               <div>
                 <div className={styles.chatHeaderName}>{activeConvo.partner.name}</div>
-                <div className={styles.chatHeaderEmail}>
-                  {wsReady ? '🟢 online' : '⚪ connecting...'}
+                <div className={styles.chatHeaderEmail} style={{ color: partnerOnline ? '#00cc6a' : '#888' }}>
+                  {partnerOnline ? '● Online' : partnerLastSeen ? `Last seen ${formatLastSeen(partnerLastSeen)}` : '○ Offline'}
                 </div>
               </div>
             </div>
