@@ -24,13 +24,7 @@ interface Props {
   initialUserName?: string | null
 }
 
-function getCookie(name: string): string {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
-  return match ? match[2] : ''
-}
-
 const WS_URL = import.meta.env.VITE_WS_URL || 'wss://korisu-chat.onrender.com/ws'
-
 
 export default function DashChat({ initialUserId, initialUserName }: Props) {
   const user = useAuthStore(s => s.user)
@@ -55,6 +49,9 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       .then(r => {
         setMessages(r.data.messages)
         setConvId(r.data.conversation_id)
+        setConvos(prev => prev.map(c =>
+          c.conversation_id === r.data.conversation_id ? { ...c, unread_count: 0 } : c
+        ))
         setActiveConvo({
           conversation_id: r.data.conversation_id,
           partner: {
@@ -71,7 +68,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       .catch(() => {})
   }, [initialUserId])
 
-  // WebSocket с авторизацией через первое сообщение
+  // WebSocket
   useEffect(() => {
     if (!user) return
     let ws: WebSocket
@@ -83,10 +80,8 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       setWsReady(false)
 
       ws.onopen = async () => {
-        // Отправляем токен первым сообщением
         const { data } = await api.get('/auth/token').catch(() => ({ data: { token: '' } }))
-        const token = data.token
-        ws.send(JSON.stringify({ type: 'auth', token }))
+        ws.send(JSON.stringify({ token: data.token }))
       }
 
       ws.onmessage = (e) => {
@@ -106,7 +101,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
           setMessages(prev => [...prev, msg])
           setConvos(prev => prev.map(c =>
             c.conversation_id === msg.conversation_id
-              ? { ...c, last_message: msg.content, last_message_at: msg.created_at }
+              ? { ...c, last_message: msg.content, last_message_at: msg.created_at, unread_count: c.unread_count + 1 }
               : c
           ))
         }
@@ -132,15 +127,14 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
       .then(r => {
         setMessages(r.data.messages)
         setConvId(r.data.conversation_id)
-
+        // Mark as read
         if (r.data.conversation_id) {
           wsRef.current?.send(JSON.stringify({
             type: 'mark_read',
             conversation_id: r.data.conversation_id
           }))
-
           setConvos(prev => prev.map(c =>
-            setConvos(prev => prev.map(c =>
+            c.conversation_id === r.data.conversation_id
               ? { ...c, unread_count: 0 }
               : c
           ))
@@ -174,6 +168,13 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
+  const openConvo = (c: Conversation) => {
+    setActiveConvo(c)
+    setConvos(prev => prev.map(x =>
+      x.conversation_id === c.conversation_id ? { ...x, unread_count: 0 } : x
+    ))
+  }
+
   return (
     <div className={styles.root}>
       <aside className={styles.list}>
@@ -184,7 +185,7 @@ export default function DashChat({ initialUserId, initialUserName }: Props) {
             <button
               key={c.conversation_id}
               className={c.conversation_id === activeConvo?.conversation_id ? styles.convoItemActive : styles.convoItem}
-              onClick={() => setActiveConvo(c)}
+              onClick={() => openConvo(c)}
             >
               <div className={styles.convoAvatar}>
                 {c.partner.avatar_url ? <img src={c.partner.avatar_url} alt={c.partner.name} /> : c.partner.name.slice(0, 2).toUpperCase()}
