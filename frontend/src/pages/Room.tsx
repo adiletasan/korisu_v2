@@ -97,7 +97,7 @@ function ParticipantGrid() {
           justifyContent: 'center',
         }}>
           {p.isCameraEnabled ? (
-            <VideoTrack participant={p} source={Track.Source.Camera} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <ParticipantTile participant={p} style={{ width: '100%', height: '100%' }} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
               <div style={{
