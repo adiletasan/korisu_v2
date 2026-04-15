@@ -85,8 +85,34 @@ function ParticipantGrid() {
     ],
     { onlySubscribed: false }
   )
+
+  const screenTracks = tracks.filter(t => t.source === Track.Source.ScreenShare)
+  const cameraTracks = tracks.filter(t => t.source === Track.Source.Camera)
+  const isSharing = screenTracks.length > 0
+
+  if (isSharing) {
+    return (
+      <div style={{ display: 'flex', width: '100%', height: '100%', gap: '8px', padding: '8px' }}>
+        <div style={{ flex: 1, background: '#111', borderRadius: '12px', overflow: 'hidden' }}>
+          <GridLayout tracks={screenTracks} style={{ width: '100%', height: '100%' }}>
+            <ParticipantTile />
+          </GridLayout>
+        </div>
+        <div style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
+          {cameraTracks.map((track, i) => (
+            <div key={i} style={{ height: '120px', background: '#1a1a1a', borderRadius: '10px', overflow: 'hidden', flexShrink: 0 }}>
+              <GridLayout tracks={[track]} style={{ width: '100%', height: '100%' }}>
+                <ParticipantTile />
+              </GridLayout>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <GridLayout tracks={tracks} style={{ width: '100%', height: '100%' }}>
+    <GridLayout tracks={cameraTracks} style={{ width: '100%', height: '100%', padding: '8px' }}>
       <ParticipantTile />
     </GridLayout>
   )
@@ -219,22 +245,18 @@ function RoomContent({ meetingId, isHost, onLeave }: {
           {isMuted ? <MicOffIcon /> : <MicIcon />}
           <span>{isMuted ? 'Unmute' : 'Mute'}</span>
         </button>
-
         <button className={isCamOff ? styles.controlBtnOff : styles.controlBtn} onClick={toggleCam}>
           {isCamOff ? <CamOffIcon /> : <CamIcon />}
           <span>{isCamOff ? 'Start video' : 'Stop video'}</span>
         </button>
-
         <button className={isSharing ? styles.controlBtnOff : styles.controlBtn} onClick={toggleShare}>
           <ShareIcon />
           <span>{isSharing ? 'Stop share' : 'Share screen'}</span>
         </button>
-
         <button className={styles.controlBtn} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/lobby/${meetingId}`)}>
           <LinkIcon />
           <span>Invite</span>
         </button>
-
         {isHost ? (
           <button className={styles.endBtn} onClick={endMeeting}>
             <PhoneOffIcon />
