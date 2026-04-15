@@ -96,3 +96,27 @@ async def change_password(
     user.password_hash = hash_password(new_pass)
     await db.commit()
     return {"ok": True}
+
+
+@router.get("/status/{user_id}")
+async def get_user_status(
+    user_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    redis = request.app.state.redis
+    is_online = await redis.exists(f"user:{user_id}:online")
+
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    return {
+        "user_id": user_id,
+        "is_online": bool(is_online),
+        "last_seen_at": user.last_seen_at.isoformat() if user.last_seen_at else None,
+    }
