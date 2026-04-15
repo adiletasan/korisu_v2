@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, Header
 from livekit_service import create_host_token, create_guest_token, create_room
 
 router = APIRouter()
@@ -17,14 +17,14 @@ async def issue_token(
 ):
     meeting_id = body["meeting_id"]
     user_id = body["user_id"]
+    user_name = body.get("user_name", "")
     role = body.get("role", "guest")
 
-    # Ensure room exists in LiveKit
     await create_room(meeting_id)
 
     if role == "host":
-        token = create_host_token(meeting_id, user_id)
+        token = create_host_token(meeting_id, user_id, user_name)
     else:
-        token = create_guest_token(meeting_id, user_id)
+        token = create_guest_token(meeting_id, user_id, user_name)
 
     return {"token": token}

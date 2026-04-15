@@ -10,10 +10,10 @@ def get_livekit_client():
     )
 
 
-def create_host_token(meeting_id: str, user_id: str) -> str:
+def create_host_token(meeting_id: str, user_id: str, user_name: str = "") -> str:
     at = api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
     at.with_identity(user_id)
-    at.with_name(user_id)
+    at.with_name(user_name or user_id)
     at.with_grants(
         api.VideoGrants(
             room_join=True,
@@ -27,10 +27,10 @@ def create_host_token(meeting_id: str, user_id: str) -> str:
     return at.to_jwt()
 
 
-def create_guest_token(meeting_id: str, user_id: str) -> str:
+def create_guest_token(meeting_id: str, user_id: str, user_name: str = "") -> str:
     at = api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
     at.with_identity(user_id)
-    at.with_name(user_id)
+    at.with_name(user_name or user_id)
     at.with_grants(
         api.VideoGrants(
             room_join=True,
@@ -45,18 +45,16 @@ def create_guest_token(meeting_id: str, user_id: str) -> str:
 
 
 async def create_room(meeting_id: str):
-    """Create LiveKit room lazily — it activates on first participant join."""
     lk = get_livekit_client()
     try:
         await lk.room.create_room(
             api.CreateRoomRequest(
                 name=meeting_id,
-                empty_timeout=300,  # 5 min auto-close if empty
+                empty_timeout=300,
                 max_participants=50,
             )
         )
-    except Exception as e:
-        # Room may already exist — that's fine
+    except Exception:
         pass
     finally:
         await lk.aclose()

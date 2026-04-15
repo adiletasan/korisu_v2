@@ -64,7 +64,7 @@ async def create_meeting(
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(
                 f"{settings.CONFERENCE_SERVICE_URL}/internal/token",
-                json={"meeting_id": str(meeting_id), "user_id": user_id, "role": "host"},
+                json={"meeting_id": str(meeting_id), "user_id": user_id, "role": "host", "user_name": current_user.get("email", "").split("@")[0]},
                 headers={"X-Internal-Key": settings.INTERNAL_KEY if hasattr(settings, 'INTERNAL_KEY') else "korisu-internal"},
             )
             host_token = resp.json().get("token", "")

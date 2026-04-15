@@ -87,7 +87,7 @@ async def lobby_status(
 
     data = json.loads(raw)
     if data["status"] == "approved":
-        lk_token = create_guest_token(meeting_id, user_id)
+        lk_token = create_guest_token(meeting_id, user_id, data.get("name", user_id))
         return {"status": "approved", "livekit_token": lk_token}
 
     if data["status"] == "rejected":
