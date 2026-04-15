@@ -88,7 +88,7 @@ export default function Auth() {
         </p>
 
         {/* Google OAuth */}
-        <a href="/auth/google" className={styles.googleBtn}>
+        <a href="https://korisu-api.onrender.com/auth/google" className={styles.googleBtn}>
           <GoogleIcon />
           Continue with Google
         </a>
