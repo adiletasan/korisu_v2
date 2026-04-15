@@ -78,53 +78,17 @@ export default function Room() {
 interface LobbyGuest { user_id: string; email: string; name: string; requested_at: string }
 
 function ParticipantGrid() {
-  const participants = useParticipants()
-
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  )
   return (
-    <div className={styles.grid} style={{
-      display: 'grid',
-      gridTemplateColumns: participants.length === 1 ? '1fr' : participants.length <= 4 ? '1fr 1fr' : '1fr 1fr 1fr',
-      gap: '8px',
-      width: '100%',
-      height: '100%',
-      padding: '8px',
-    }}>
-      {participants.map(p => (
-        <div key={p.identity} style={{
-          position: 'relative',
-          background: '#1a1a1a',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          {p.isCameraEnabled ? (
-            <ParticipantTile participant={p} style={{ width: '100%', height: '100%' }} />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '72px', height: '72px', borderRadius: '50%',
-                background: '#2a2a2a', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: '28px', fontWeight: '700', color: '#fff'
-              }}>
-                {(p.name || p.identity).slice(0, 2).toUpperCase()}
-              </div>
-              <span style={{ color: '#888', fontSize: '14px' }}>{p.name || p.identity}</span>
-            </div>
-          )}
-          <div style={{
-            position: 'absolute', bottom: '10px', left: '12px',
-            background: 'rgba(0,0,0,0.6)', borderRadius: '6px',
-            padding: '3px 8px', fontSize: '12px', color: '#fff',
-            display: 'flex', alignItems: 'center', gap: '6px'
-          }}>
-            {!p.isMicrophoneEnabled && <span>🔇</span>}
-            {p.name || p.identity}
-          </div>
-        </div>
-      ))}
-    </div>
+    <GridLayout tracks={tracks} style={{ width: '100%', height: '100%' }}>
+      <ParticipantTile />
+    </GridLayout>
   )
 }
 
