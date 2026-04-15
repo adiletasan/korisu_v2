@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   LiveKitRoom,
-  VideoConference,
   RoomAudioRenderer,
   useRoomContext,
   useParticipants,
   useLocalParticipant,
+  VideoTrack,
+  AudioTrack,
 } from '@livekit/components-react'
+import { Track } from 'livekit-client'
 import { useAuthStore } from '../store/auth'
 import api from '../lib/api'
 import styles from './Room.module.css'
@@ -24,24 +26,10 @@ export default function Room() {
 
   useEffect(() => {
     if (!meetingId) return
-
-    // Try host token first (set by DashHome when creating)
     const hostToken = sessionStorage.getItem(`host_token_${meetingId}`)
-    if (hostToken) {
-      setToken(hostToken)
-      setIsHost(true)
-      return
-    }
-
-    // Try guest token (set by Lobby when approved)
+    if (hostToken) { setToken(hostToken); setIsHost(true); return }
     const guestToken = sessionStorage.getItem(`guest_token_${meetingId}`)
-    if (guestToken) {
-      setToken(guestToken)
-      setIsHost(false)
-      return
-    }
-
-    // No token — redirect to lobby
+    if (guestToken) { setToken(guestToken); setIsHost(false); return }
     nav(`/lobby/${meetingId}`, { replace: true })
   }, [meetingId])
 
@@ -53,24 +41,20 @@ export default function Room() {
     nav('/dashboard')
   }, [meetingId, nav])
 
-  if (error) {
-    return (
-      <div className={styles.errorPage}>
-        <h2>Cannot join meeting</h2>
-        <p>{error}</p>
-        <button onClick={() => nav('/dashboard')}>Back to dashboard</button>
-      </div>
-    )
-  }
+  if (error) return (
+    <div className={styles.errorPage}>
+      <h2>Cannot join meeting</h2>
+      <p>{error}</p>
+      <button onClick={() => nav('/dashboard')}>Back to dashboard</button>
+    </div>
+  )
 
-  if (!token) {
-    return (
-      <div className={styles.loadingPage}>
-        <div className={styles.spinner} />
-        <p>Connecting to room…</p>
-      </div>
-    )
-  }
+  if (!token) return (
+    <div className={styles.loadingPage}>
+      <div className={styles.spinner} />
+      <p>Connecting to room…</p>
+    </div>
+  )
 
   return (
     <div className={styles.root}>
@@ -84,20 +68,63 @@ export default function Room() {
         className={styles.livekitRoom}
       >
         <RoomAudioRenderer />
-        <RoomContent
-          meetingId={meetingId!}
-          isHost={isHost}
-          onLeave={handleDisconnect}
-        />
+        <RoomContent meetingId={meetingId!} isHost={isHost} onLeave={handleDisconnect} />
       </LiveKitRoom>
     </div>
   )
 }
 
-/* ── Inner room content ─────────────────────────────────── */
+interface LobbyGuest { user_id: string; email: string; name: string; requested_at: string }
 
-interface LobbyGuest {
-  user_id: string; email: string; name: string; requested_at: string
+function ParticipantGrid() {
+  const participants = useParticipants()
+
+  return (
+    <div className={styles.grid} style={{
+      display: 'grid',
+      gridTemplateColumns: participants.length === 1 ? '1fr' : participants.length <= 4 ? '1fr 1fr' : '1fr 1fr 1fr',
+      gap: '8px',
+      width: '100%',
+      height: '100%',
+      padding: '8px',
+    }}>
+      {participants.map(p => (
+        <div key={p.identity} style={{
+          position: 'relative',
+          background: '#1a1a1a',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          {p.isCameraEnabled ? (
+            <VideoTrack participant={p} source={Track.Source.Camera} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '72px', height: '72px', borderRadius: '50%',
+                background: '#2a2a2a', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: '28px', fontWeight: '700', color: '#fff'
+              }}>
+                {(p.name || p.identity).slice(0, 2).toUpperCase()}
+              </div>
+              <span style={{ color: '#888', fontSize: '14px' }}>{p.name || p.identity}</span>
+            </div>
+          )}
+          <div style={{
+            position: 'absolute', bottom: '10px', left: '12px',
+            background: 'rgba(0,0,0,0.6)', borderRadius: '6px',
+            padding: '3px 8px', fontSize: '12px', color: '#fff',
+            display: 'flex', alignItems: 'center', gap: '6px'
+          }}>
+            {!p.isMicrophoneEnabled && <span>🔇</span>}
+            {p.name || p.identity}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function RoomContent({ meetingId, isHost, onLeave }: {
@@ -113,9 +140,8 @@ function RoomContent({ meetingId, isHost, onLeave }: {
   const [chatText, setChatText] = useState('')
   const [isMuted, setIsMuted] = useState(false)
   const [isCamOff, setIsCamOff] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
+  const [isSharing, setIsSharing] = useState(false)
 
-  // Poll lobby guests if host
   useEffect(() => {
     if (!isHost) return
     const poll = setInterval(async () => {
@@ -128,7 +154,6 @@ function RoomContent({ meetingId, isHost, onLeave }: {
     return () => clearInterval(poll)
   }, [isHost, meetingId])
 
-  // In-room chat via LiveKit DataChannel
   useEffect(() => {
     const handler = (payload: Uint8Array, participant: any) => {
       try {
@@ -162,6 +187,20 @@ function RoomContent({ meetingId, isHost, onLeave }: {
   const toggleCam = async () => {
     await localParticipant.setCameraEnabled(isCamOff)
     setIsCamOff(!isCamOff)
+  }
+
+  const toggleShare = async () => {
+    try {
+      if (isSharing) {
+        await localParticipant.setScreenShareEnabled(false)
+        setIsSharing(false)
+      } else {
+        await localParticipant.setScreenShareEnabled(true)
+        setIsSharing(true)
+      }
+    } catch {
+      setIsSharing(false)
+    }
   }
 
   const endMeeting = async () => {
@@ -206,34 +245,27 @@ function RoomContent({ meetingId, isHost, onLeave }: {
 
       {/* VIDEO GRID */}
       <div className={styles.videoArea}>
-        <VideoConference />
+        <ParticipantGrid />
       </div>
 
       {/* CONTROLS */}
       <div className={styles.controls}>
-        <button
-          className={isMuted ? styles.controlBtnOff : styles.controlBtn}
-          onClick={toggleMic}
-          title={isMuted ? 'Unmute' : 'Mute'}
-        >
+        <button className={isMuted ? styles.controlBtnOff : styles.controlBtn} onClick={toggleMic}>
           {isMuted ? <MicOffIcon /> : <MicIcon />}
           <span>{isMuted ? 'Unmute' : 'Mute'}</span>
         </button>
 
-        <button
-          className={isCamOff ? styles.controlBtnOff : styles.controlBtn}
-          onClick={toggleCam}
-          title={isCamOff ? 'Start video' : 'Stop video'}
-        >
+        <button className={isCamOff ? styles.controlBtnOff : styles.controlBtn} onClick={toggleCam}>
           {isCamOff ? <CamOffIcon /> : <CamIcon />}
           <span>{isCamOff ? 'Start video' : 'Stop video'}</span>
         </button>
 
-        <button
-          className={styles.controlBtn}
-          onClick={() => navigator.clipboard.writeText(`${window.location.origin}/lobby/${meetingId}`)}
-          title="Copy invite link"
-        >
+        <button className={isSharing ? styles.controlBtnOff : styles.controlBtn} onClick={toggleShare}>
+          <ShareIcon />
+          <span>{isSharing ? 'Stop share' : 'Share screen'}</span>
+        </button>
+
+        <button className={styles.controlBtn} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/lobby/${meetingId}`)}>
           <LinkIcon />
           <span>Invite</span>
         </button>
@@ -244,7 +276,7 @@ function RoomContent({ meetingId, isHost, onLeave }: {
             <span>End meeting</span>
           </button>
         ) : (
-          <button className={styles.leaveBtn} onClick={() => { room.disconnect() }}>
+          <button className={styles.leaveBtn} onClick={() => room.disconnect()}>
             <PhoneOffIcon />
             <span>Leave</span>
           </button>
@@ -264,7 +296,7 @@ function RoomContent({ meetingId, isHost, onLeave }: {
               <div key={g.user_id} className={styles.guestRow}>
                 <div className={styles.guestAvatar}>{g.email.slice(0, 2).toUpperCase()}</div>
                 <div className={styles.guestInfo}>
-                  <div className={styles.guestName}>{g.email}</div>
+                  <div className={styles.guestName}>{g.name || g.email}</div>
                 </div>
                 <div className={styles.guestActions}>
                   <button className={styles.admitBtn} onClick={() => approveGuest(g.user_id)}>Admit</button>
@@ -301,9 +333,7 @@ function RoomContent({ meetingId, isHost, onLeave }: {
               onKeyDown={e => { if (e.key === 'Enter') sendChat() }}
               maxLength={500}
             />
-            <button className={styles.chatSendBtn} onClick={sendChat}>
-              <SendIcon />
-            </button>
+            <button className={styles.chatSendBtn} onClick={sendChat}><SendIcon /></button>
           </div>
         </div>
       )}
@@ -311,12 +341,12 @@ function RoomContent({ meetingId, isHost, onLeave }: {
   )
 }
 
-/* ── Icons ──────────────────────────────────────────────── */
 const DotIcon = () => <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="var(--accent)"/></svg>
 const MicIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
 const MicOffIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6"/><path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23M12 19v4M8 23h8"/></svg>
 const CamIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
 const CamOffIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 16v1a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2h2m5.66 0H14a2 2 0 012 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+const ShareIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
 const LinkIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
 const PhoneOffIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10.68 13.31a16 16 0 003.41 2.6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07"/><path d="M13.31 10.68A16 16 0 0010.7 7.27L9.43 8.54a2 2 0 01-2.11.45 12.84 12.84 0 00-2.81-.7 2 2 0 01-1.72-2v-3A2 2 0 015 1.07a19.79 19.79 0 018.63 3.07"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
 const ChatIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
