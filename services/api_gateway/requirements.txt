@@ -14,3 +14,4 @@ cryptography==44.0.2
 livekit-api==0.7.1
 sendgrid==6.11.0
 python-dotenv==1.0.1
+resend==2.0.0

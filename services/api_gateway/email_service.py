@@ -1,4 +1,4 @@
-import httpx
+import resend
 from config import settings
 
 
@@ -17,27 +17,19 @@ async def send_verification_email(email: str, name: str, token: str):
     </div>
     """
 
-    if not settings.SENDGRID_API_KEY:
-        # In production without SendGrid: log the URL
-        # The user can get the link from Render logs
+    if not settings.RESEND_API_KEY:
         print(f"[KORISU] Verification link for {email}: {verify_url}")
         return
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                "https://api.sendgrid.com/v3/mail/send",
-                headers={"Authorization": f"Bearer {settings.SENDGRID_API_KEY}"},
-                json={
-                    "personalizations": [{"to": [{"email": email, "name": name}]}],
-                    "from": {"email": settings.FROM_EMAIL, "name": "Korisu"},
-                    "subject": "Verify your Korisu account",
-                    "content": [{"type": "text/html", "value": html}],
-                },
-            )
-            if resp.status_code >= 400:
-                print(f"[KORISU] SendGrid error {resp.status_code}: {resp.text}")
-                print(f"[KORISU] Fallback verification link for {email}: {verify_url}")
+        resend.api_key = settings.RESEND_API_KEY
+        resend.Emails.send({
+            "from": settings.FROM_EMAIL,
+            "to": email,
+            "subject": "Verify your Korisu account",
+            "html": html,
+        })
+        print(f"[KORISU] Verification email sent to {email}")
     except Exception as e:
         print(f"[KORISU] Email send failed: {e}")
         print(f"[KORISU] Fallback verification link for {email}: {verify_url}")

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
 
     SENDGRID_API_KEY: str = ""
+    RESEND_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@korisu.online"
 
     FRONTEND_URL: str = "http://localhost:5173"
