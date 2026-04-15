@@ -6,10 +6,8 @@ import {
   useRoomContext,
   useParticipants,
   useLocalParticipant,
-  VideoTrack,
-  AudioTrack,
+  ParticipantTile,
 } from '@livekit/components-react'
-import { Track } from 'livekit-client'
 import { useAuthStore } from '../store/auth'
 import api from '../lib/api'
 import styles from './Room.module.css'
