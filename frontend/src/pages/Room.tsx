@@ -6,8 +6,11 @@ import {
   useRoomContext,
   useParticipants,
   useLocalParticipant,
+  GridLayout,
   ParticipantTile,
+  useTracks,
 } from '@livekit/components-react'
+import { Track } from 'livekit-client'
 import { useAuthStore } from '../store/auth'
 import api from '../lib/api'
 import styles from './Room.module.css'
