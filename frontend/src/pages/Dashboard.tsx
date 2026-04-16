@@ -137,6 +137,12 @@ export default function Dashboard() {
       document.documentElement.style.setProperty('--text-secondary', '#6b7280')
       document.documentElement.style.setProperty('--text-tertiary', '#9ca3af')
       document.documentElement.style.setProperty('--border', 'rgba(0,0,0,0.07)')
+      document.documentElement.style.setProperty('--chat-bg', '#f5f4f1')
+      document.documentElement.style.setProperty('--chat-surface', '#ffffff')
+      document.documentElement.style.setProperty('--chat-border', 'rgba(0,0,0,0.07)')
+      document.documentElement.style.setProperty('--chat-text', '#111318')
+      document.documentElement.style.setProperty('--chat-text-muted', '#9ca3af')
+      document.documentElement.style.setProperty('--chat-input-bg', '#fafaf8')
     }
   }, [theme])
 
