@@ -12,9 +12,9 @@
   --text: #f0f0f0;
   --text-2: #888888;
   --text-3: #555555;
-  --accent: #00ff88;
-  --accent-dim: rgba(0,255,136,0.12);
-  --accent-glow: rgba(0,255,136,0.25);
+  --accent: #4361ee;
+  --accent-dim: rgba(67,97,238,0.12);
+  --accent-glow: rgba(67,97,238,0.3);
   --red: #ff4444;
   --red-dim: rgba(255,68,68,0.12);
   --yellow: #ffcc00;
