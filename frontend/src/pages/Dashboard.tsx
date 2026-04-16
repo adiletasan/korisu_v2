@@ -540,14 +540,14 @@ function ContactsPage({ t, onStartChat }: any) {
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
 
-  const load = () => api.get('/api/contacts/').then(r => setContacts(r.data)).catch(() => {})
+  const load = () => api.get('/api/contacts').then(r => setContacts(r.data)).catch(() => {})
   useEffect(() => { load() }, [])
 
   const addContact = async () => {
     if (!email.trim()) return
     setAdding(true); setError('')
     try {
-      await api.post('/api/contacts/', { email: email.trim(), nickname: nickname.trim() || undefined })
+      await api.post('/api/contacts', { email: email.trim(), nickname: nickname.trim() || undefined })
       setEmail(''); setNickname(''); load()
       toast(t.contactAdded, 'success')
     } catch (e: any) {
