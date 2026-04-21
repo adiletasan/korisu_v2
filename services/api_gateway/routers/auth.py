@@ -232,20 +232,26 @@ async def refresh_token(
 async def logout(
     request: Request,
     response: Response,
-    current_user: dict = Depends(get_current_user),
     redis: aioredis.Redis = Depends(get_redis),
 ):
-    jti = current_user.get("jti")
-    exp = current_user.get("exp")
-    if jti and exp:
-        ttl = int(exp - datetime.now(timezone.utc).timestamp())
-        if ttl > 0:
-            await redis.setex(f"blacklist:{jti}", ttl, "1")
-
-    user_id = current_user.get("user_id")
-    if user_id:
-        await redis.delete(f"user:{user_id}:online")
-        await redis.delete(f"user:{user_id}:worker_id")
+    # Try to read token from cookie even if expired
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            payload = decode_token(token)
+            if payload:
+                jti = payload.get("jti")
+                exp = payload.get("exp")
+                if jti and exp:
+                    ttl = int(exp - datetime.now(timezone.utc).timestamp())
+                    if ttl > 0:
+                        await redis.setex(f"blacklist:{jti}", ttl, "1")
+                user_id = payload.get("user_id")
+                if user_id:
+                    await redis.delete(f"user:{user_id}:online")
+                    await redis.delete(f"user:{user_id}:worker_id")
+        except Exception:
+            pass
 
     clear_auth_cookies(response)
     return {"ok": True}
