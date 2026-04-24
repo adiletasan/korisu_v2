@@ -36,6 +36,7 @@ async def google_login():
         f"&scope=openid+email+profile"
         f"&access_type=offline"
         f"&state={uuid.uuid4()}"
+        f"&prompt=select_account"
     )
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
 
